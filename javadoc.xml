@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="javadoc" default="javadoc">
+	<target name="javadoc">
+		<javadoc
+			access="public"
+			additionalparam=" -encoding &quot;UTF-8&quot; -charset &quot;UTF-8&quot; -linkoffline http://d.android.com/reference file:/C:/android-sdk-windows/docs/reference"
+			author="true"
+			classpath=".;file:/C:/android-sdk-windows/platforms/android-7/android.jar"
+			destdir="doc"
+			doctitle="fastroid Documentation"
+			windowtitle="Overview (fastroid)"
+			nodeprecated="false"
+			nodeprecatedlist="false"
+			noindex="false"
+			nonavbar="false"
+			notree="false"
+			overview="./src/overview.html"
+			source="1.6"
+			sourcefiles="gen/android/fastroid/R.java"
+			sourcepath="src;gen" splitindex="true" use="true" version="true">
+			<package name="android.androsuit.*" />
+		</javadoc>
+	</target>
+</project>
