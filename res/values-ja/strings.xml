@@ -16,8 +16,8 @@
 	THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <resources>
-    <string name="msg_validation_required">{0} is reqiured.</string>
-    <string name="msg_validation_int_value">{0} must be an integer values.</string>
-    <string name="msg_validation_min_value">{0} must be larger than {1}.</string>
-    <string name="msg_validation_max_value">{0} must be less than {1}.</string>
+    <string name="msg_validation_required">{0}は入力必須です</string>
+    <string name="msg_validation_int_value">{0}は数値でなければなりません</string>
+    <string name="msg_validation_min_value">{0}は{1}以上でなければなりません</string>
+    <string name="msg_validation_max_value">{0}は{1}以下でなければなりません</string>
 </resources>
