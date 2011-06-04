@@ -28,7 +28,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 最大値を指定するアノテーションです。
+ * This is the annotation which represents the max value.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -36,6 +36,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface MaxValue {
-    /** 最大値です。 */
+    /** Max value of the field. */
     int value();
 }

@@ -26,8 +26,13 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.fastroid.entity.Join.JoinType;
 import android.fastroid.entity.annotation.Column;
 import android.fastroid.entity.annotation.Id;
+import android.fastroid.entity.annotation.JoinColumn;
+import android.fastroid.entity.annotation.ManyToOne;
+import android.fastroid.entity.annotation.OneToOne;
+import android.fastroid.util.StringUtil;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -39,7 +44,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * Simplifies the database operations.
+ * Simplifies the database operations.<br>
+ * TODO copy method from existing instance.<br>
+ * TODO upsert method<br>
+ * TODO relation OneToMany: List<ENTITY> is not enough.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -74,6 +82,9 @@ public final class DatabaseManager {
     /** Taples of the names of the column and values for WHERE clause. */
     private Map<String, String> mWhereClauseMap;
 
+    /** Tables to join. */
+    private List<Join> mJoinList;
+
     /** WHERE clause. */
     private String mWhereClause;
 
@@ -91,12 +102,14 @@ public final class DatabaseManager {
 
     /**
      * Creates a {@code DatabaseManager}.<br>
-     * 各種データベース操作の準備を確実に行うため、コンストラクタを公開せずに クラスメソッドからインスタンスを生成します。
-     * {@link #insert(SQLiteOpenHelper, Object)}等の各種準備用メソッドを呼び出した後で なければ
-     * {@link #execute()}を実行できません。
+     * To prepare database operations certainly, this is only accessible inside
+     * this class.
+     * <p>
+     * The method {@link #execute()} cannot be called before execute the
+     * preparation methods such as {@link #insert(SQLiteOpenHelper, Object)}.
      * 
-     * @param helper 対象のテーブルにアクセスするためのヘルパー
-     * @param target 登録値を格納したオブジェクト
+     * @param helper db helper to access the target table
+     * @param target the object which has values to database operations
      */
     private DatabaseManager(final SQLiteOpenHelper helper, final Object target) {
         mTarget = target;
@@ -108,14 +121,15 @@ public final class DatabaseManager {
         mGroupByClause = null;
         mHavingClause = null;
         mOrderByClause = null;
+        mJoinList = new ArrayList<Join>();
     }
 
     /**
-     * 指定のオブジェクトを使ってデータベースを検索する準備をします。
+     * Prepares to select from tables specifying an entity object.
      * 
-     * @param helper 対象のテーブルにアクセスするためのヘルパー
-     * @param target 検索条件を格納したオブジェクト
-     * @return 検索の準備がされたデータベースマネージャ
+     * @param helper db helper to access the target table
+     * @param target object which has conditions to select
+     * @return database manager
      */
     public static DatabaseManager select(final SQLiteOpenHelper helper, final Object target) {
         DatabaseManager manager = new DatabaseManager(helper, target);
@@ -124,24 +138,25 @@ public final class DatabaseManager {
     }
 
     /**
-     * 指定のオブジェクトをデータベースへ登録する準備をする.<br>
-     * このメソッドの呼び出し後, {@link #execute()}を呼び出すことで登録が実行される.
+     * Prepares to insert to tables specifying an entity object.
+     * <p>
+     * Call {@link #execute()} to execute insert after calling this method.
      * 
-     * @param helper 対象のテーブルにアクセスするためのヘルパー
-     * @param target 登録値を格納したオブジェクト
-     * @return 登録の準備がされたデータベースマネージャ
+     * @param helper db helper to access the target table
+     * @param target object which has values to insert
+     * @return database manager
      */
     public static DatabaseManager insert(final SQLiteOpenHelper helper, final Object target) {
         DatabaseManager manager = new DatabaseManager(helper, target);
         manager.mProcessType = ProcessType.INSERT;
-        // DB項目名を作成
+        // Creates db columns by fields
         Field[] fields = target.getClass().getFields();
         for (Field field : fields) {
-            // DBカラムでないフィールドはスキップ
+            // Skip non-column fields
             if (field.getAnnotation(Column.class) == null) {
                 continue;
             }
-            // 自動採番されるキー属性はスキップ
+            // Skip auto-increment columns
             Id id = (Id) field.getAnnotation(Id.class);
             if (id != null && id.autoIncrement()) {
                 continue;
@@ -154,26 +169,28 @@ public final class DatabaseManager {
     }
 
     /**
-     * データベースを更新する準備をする.<br>
-     * このメソッドの呼び出し後, {@link #execute()}を呼び出すことで更新が実行される.
+     * Prepares to update tables.<br>
+     * <p>
+     * Call {@link #execute()} to execute update after calling this method.
      * 
-     * @param helper 対象のテーブルにアクセスするためのヘルパー
-     * @param target 更新値, 更新条件を格納したオブジェクト
-     * @return 更新の準備がされたデータベースマネージャ
+     * @param helper db helper to access the target table
+     * @param target object which has values to update
+     * @return database manager
      */
     public static DatabaseManager update(final SQLiteOpenHelper helper, final Object target) {
         DatabaseManager manager = new DatabaseManager(helper, target);
         manager.mProcessType = ProcessType.UPDATE;
-        // DB項目名を作成
+        // Creates db columns by fields
         Field[] fields = target.getClass().getFields();
         for (Field field : fields) {
-            // DBカラムでないフィールドはスキップ
+            // Skip non-column fields
             if (field.getAnnotation(Column.class) == null) {
                 continue;
             }
             final String columnName = manager.toDbName(field.getName());
             final String valueString = manager.getFieldValueAsString(field, target);
-            // キー属性は条件、その他は更新値として設定
+            // Sets the primary keys as condition to update, and other fields as
+            // update values.
             if (field.getAnnotation(Id.class) == null) {
                 manager.mContentValues.put(columnName, valueString);
             } else {
@@ -184,24 +201,24 @@ public final class DatabaseManager {
     }
 
     /**
-     * データベースから削除する準備をする.<br>
-     * このメソッドの呼び出し後, {@link #execute()}を呼び出すことで削除が実行される.
+     * Prepares to delete data from table.<br>
+     * Call {@link #execute()} after executing this method to delete.
      * 
-     * @param helper 対象のテーブルにアクセスするためのヘルパー
-     * @param target 削除条件を格納したオブジェクト
-     * @return 削除の準備がされたデータベースマネージャ
+     * @param helper db helper to access the target table
+     * @param target object which has conditions to delete
+     * @return database manager which is ready to delete
      */
     public static DatabaseManager delete(final SQLiteOpenHelper helper, final Object target) {
         DatabaseManager manager = new DatabaseManager(helper, target);
         manager.mProcessType = ProcessType.DELETE;
-        // DB項目名を作成
+        // Creates db columns by fields
         Field[] fields = target.getClass().getFields();
         for (Field field : fields) {
-            // DBカラムでないフィールドはスキップ
+            // Skip non-column fields
             if (field.getAnnotation(Column.class) == null) {
                 continue;
             }
-            // キー属性を条件として設定
+            // Sets the where conditions by primary keys
             if (field.getAnnotation(Id.class) == null) {
                 continue;
             }
@@ -213,34 +230,66 @@ public final class DatabaseManager {
     }
 
     /**
-     * 左外部結合します。<br>
-     * 検索対象のエンティティのうち、結合するフィールド名を指定することで 結合先テーブルを自動的に設定します。
-     * 結合するフィールド名にはアノテーションによる結合先テーブル名の指定が必要です。
+     * Joins table by left-outer-join.
+     * <p>
+     * The table to be joined is automatically determined by the field's
+     * annotaion.
      * 
-     * @param joinOnFieldName 結合するフィールド名
-     * @return データベースマネージャ
+     * @param relationFieldName field name of the column to join
+     * @param additionalCondClause additional condition clause
+     * @param additionalCondArgs arguments for the adittional conditions
+     * @return database manager
      */
-    public DatabaseManager leftOuterJoin(final String joinOnFieldName) {
-        // TODO LEFT JOINするテーブル名とフィールド名の算出・保存
+    public DatabaseManager leftOuterJoin(final String relationFieldName,
+            final String additionalCondClause, final String... additionalCondArgs) {
+        Join join = new Join();
+        join.setType(JoinType.LEFT_OUTER_JOIN);
+        join.setFieldName(relationFieldName);
+        try {
+            Field relationField = mTarget.getClass().getField(relationFieldName);
+            Class<?> joinClass = relationField.getType();
+            join.setTableClass(joinClass);
+            join.setTableName(toDbName(joinClass.getSimpleName()));
+
+            ManyToOne manyToOne = relationField.getAnnotation(ManyToOne.class);
+            JoinColumn joinColumn;
+            if (manyToOne == null) {
+                OneToOne oneToMany = relationField.getAnnotation(OneToOne.class);
+                String childFieldName = oneToMany.mappedBy();
+                joinColumn = joinClass.getField(childFieldName)
+                        .getAnnotation(JoinColumn.class);
+            } else {
+                joinColumn = relationField.getAnnotation(JoinColumn.class);
+            }
+
+            join.setColumnName(toDbName(joinColumn.name()));
+            join.setAdditionalCondClause(additionalCondClause);
+            join.setAdditionalCondArgs(additionalCondArgs);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        mJoinList.add(join);
         return this;
     }
 
     /**
-     * 検索を実行します。
+     * Execute search.
      * 
-     * @param <T> 検索されるエンティティの型
-     * @return 検索結果のエンティティのリスト
+     * @param <T> type of the entity to be searched
+     * @return list of the entities
      */
     public <T> List<T> executeQuery() {
         @SuppressWarnings("unchecked")
         Class<T> targetClass = (Class<T>) mTarget.getClass();
         ArrayList<T> result = new ArrayList<T>();
+        // Cannot execute other than SELECT operation
         if (mProcessType != ProcessType.SELECT) {
             return result;
         }
         SQLiteDatabase db = null;
         Cursor cursor = null;
         try {
+            // Gets fields of the target class.
             final String tableName = toDbName(targetClass.getSimpleName());
             constructWhereClause();
 
@@ -248,56 +297,118 @@ public final class DatabaseManager {
             Arrays.sort(fields, new FieldOrderComparator());
             final ArrayList<String> fieldNames = new ArrayList<String>();
             for (Field field : fields) {
-                // DBカラムでないフィールドはスキップ
+                // Skip non-column fields
                 if (field.getAnnotation(Column.class) == null) {
                     continue;
                 }
                 fieldNames.add(toDbName(field.getName()));
             }
             db = mHelper.getReadableDatabase();
-            // TODO JOINするためにdb.rawQuery()を使う
-            // String columns = fieldNames...
-            // String sql = "SELECT " + columns + " FROM " + tableName;
-            // for (Join join : joinList) {
-            // if (join.getType().equals(JoinType.INNER_JOIN) {
-            // sql += " INNER JOIN " + join.getTableName() + " ON ";
-            // } else if (join.getType().equals(JoinType.LEFT_OUTER_JOIN) {
-            // sql += " LEFT OUTER JOIN " + join.getTableName() + " ON ";
-            // }
-            // }
-            // cursor = db.rawQuery(sql, sqlArgs);
-            cursor = db.query(
-                    tableName,
-                    fieldNames.toArray(new String[] {}),
-                    mWhereClause,
-                    mWhereArgs,
-                    mGroupByClause,
-                    mHavingClause,
-                    mOrderByClause);
+            StringBuilder columns = new StringBuilder();
+            for (String fieldName : fieldNames) {
+                if (columns.length() > 0) {
+                    columns.append(", ");
+                }
+                columns.append(tableName);
+                columns.append(".");
+                columns.append(fieldName);
+            }
+            List<String> sqlArgsList = new ArrayList<String>();
+            // Creates JOIN phrase
+            String sql = "";
+            for (Join join : mJoinList) {
+                if (join.getType().equals(JoinType.INNER_JOIN)) {
+                    sql += " INNER JOIN " + join.getTableName()
+                            + " ON " + tableName + "." + join.getColumnName()
+                            + " = " + join.getTableName() + "." + join.getColumnName();
+                } else if (join.getType().equals(JoinType.LEFT_OUTER_JOIN)) {
+                    sql += " LEFT OUTER JOIN " + join.getTableName()
+                            + " ON " + tableName + "." + join.getColumnName()
+                            + " = " + join.getTableName() + "." + join.getColumnName();
+                }
+                String additionalCondClause = join.getAdditionalCondClause();
+                if (!StringUtil.isEmpty(additionalCondClause)) {
+                    sql += " AND " + additionalCondClause;
+                }
+                if (join.getAdditionalCondArgs() != null) {
+                    for (String arg : join.getAdditionalCondArgs()) {
+                        sqlArgsList.add(arg);
+                    }
+                }
+                // Adds the columns of the joined table.
+                final Field[] joinFields = join.getTableClass().getFields();
+                Arrays.sort(joinFields, new FieldOrderComparator());
+                final ArrayList<String> joinFieldNames = new ArrayList<String>();
+                for (Field field : joinFields) {
+                    // Skip non-column fields
+                    if (field.getAnnotation(Column.class) == null) {
+                        continue;
+                    }
+                    joinFieldNames.add(toDbName(field.getName()));
+                }
+                db = mHelper.getReadableDatabase();
+                StringBuilder joinColumns = new StringBuilder();
+                for (String fieldName : joinFieldNames) {
+                    if (joinColumns.length() > 0) {
+                        joinColumns.append(", ");
+                    }
+                    joinColumns.append(join.getTableName());
+                    joinColumns.append(".");
+                    joinColumns.append(fieldName);
+                }
+                if (joinColumns.length() > 0) {
+                    if (columns.length() > 0) {
+                        columns.append(", ");
+                    }
+                    columns.append(joinColumns);
+                }
+            }
+            sql = "SELECT " + columns + " FROM " + tableName + sql;
+            if (!StringUtil.isEmpty(mWhereClause)) {
+                sql += " WHERE " + mWhereClause;
+                for (String arg : mWhereArgs) {
+                    sqlArgsList.add(arg);
+                }
+            }
+            if (!StringUtil.isEmpty(mGroupByClause)) {
+                sql += " GROUP BY " + mGroupByClause;
+                if (!StringUtil.isEmpty(mHavingClause)) {
+                    sql += " HAVING " + mHavingClause;
+                }
+            }
+            if (!StringUtil.isEmpty(mOrderByClause)) {
+                sql += " ORDER BY " + mOrderByClause;
+            }
+            String[] sqlArgs = sqlArgsList.toArray(new String[] {});
+
+            // Now, execute the complete query!
+            cursor = db.rawQuery(sql, sqlArgs);
+
+            // Retrieves the selected values from the cursor
             if (cursor.moveToFirst()) {
                 do {
                     final T entity = targetClass.newInstance();
                     int cursorPos = 0;
                     for (Field field : fields) {
-                        // DBカラムでないフィールドはスキップ
-                        if (field.getAnnotation(Column.class) == null) {
-                            continue;
+                        // Skip non-column fields
+                        if (field.getAnnotation(Column.class) != null) {
+                            cursorPos = setFieldValuesByCursor(field, entity, cursor, cursorPos);
                         }
-                        final Class<?> type = field.getType();
-                        if (type.equals(double.class)) {
-                            field.setDouble(entity, cursor.getDouble(cursorPos++));
-                        } else if (type.equals(float.class)) {
-                            field.setFloat(entity, cursor.getFloat(cursorPos++));
-                        } else if (type.equals(int.class)) {
-                            field.setInt(entity, cursor.getInt(cursorPos++));
-                        } else if (type.equals(long.class)) {
-                            field.setLong(entity, cursor.getLong(cursorPos++));
-                        } else if (type.equals(String.class)) {
-                            field.set(entity, cursor.getString(cursorPos++));
-                        } else if (type.equals(byte[].class)) {
-                            field.set(entity, cursor.getBlob(cursorPos++));
-                        } else if (type.equals(short.class)) {
-                            field.setShort(entity, cursor.getShort(cursorPos++));
+                    }
+                    for (Join join : mJoinList) {
+                        Field relationField = entity.getClass().getField(join.getFieldName());
+                        // Initializes the relation field.
+                        Object relation = relationField.getType().newInstance();
+                        relationField.set(entity, relation);
+                        final Field[] joinFields = join.getTableClass().getFields();
+                        Arrays.sort(joinFields, new FieldOrderComparator());
+                        for (Field joinField : joinFields) {
+                            // Skip non-column fields
+                            if (joinField.getAnnotation(Column.class) == null) {
+                                continue;
+                            }
+                            cursorPos = setFieldValuesByCursor(joinField, relation, cursor,
+                                    cursorPos);
                         }
                     }
                     result.add(entity);
@@ -317,12 +428,13 @@ public final class DatabaseManager {
     }
 
     /**
-     * データベース操作を実行する.<br>
-     * 操作の結果コードを戻り値として返す. 結果コードは,
-     * {@link SQLiteDatabase#insert(String, String, ContentValues)}
-     * 等の操作メソッドの戻り値である. 操作に失敗した場合は{@code -1}を返す.
+     * Executes database operation.<br>
+     * This returns the result code of the operation. Result code is the return
+     * values of {@link SQLiteDatabase#insert(String, String, ContentValues)} or
+     * other manipulation methods. This returns {@code -1} if this fails to
+     * execute.
      * 
-     * @return 操作の結果
+     * @return result of this operation
      */
     public long execute() {
         long ret = -1;
@@ -332,17 +444,20 @@ public final class DatabaseManager {
             constructWhereClause();
             switch (mProcessType) {
                 case INSERT:
-                    db = mHelper.getWritableDatabase();
-                    ret = db.insert(tableName, null, mContentValues);
+                    if (mContentValues.size() > 0) {
+                        db = mHelper.getWritableDatabase();
+                        ret = db.insert(tableName, null, mContentValues);
+                    }
                     break;
                 case UPDATE:
-                    db = mHelper.getWritableDatabase();
-                    ret =
-                            db.update(
+                    if (mContentValues.size() > 0) {
+                        db = mHelper.getWritableDatabase();
+                        ret = db.update(
                                     tableName,
                                     mContentValues,
                                     mWhereClause,
                                     mWhereArgs);
+                    }
                     break;
                 case DELETE:
                     db = mHelper.getWritableDatabase();
@@ -360,61 +475,64 @@ public final class DatabaseManager {
     }
 
     /**
-     * WHERE句を指定します。
+     * Sets the WHERE clause.
      * 
-     * @param whereClause WHERE句(パラメータは「?」)
-     * @param whereArgs WHERE句のパラメータ
-     * @return WHERE句が設定されたデータベースマネージャ
+     * @param whereClause WHERE clause which is parameterized by '?'
+     * @param whereArgs arguments for parameterized WHERE clause
+     * @return database manager
      */
     public DatabaseManager where(final String whereClause, final String... whereArgs) {
-        this.mWhereClause = whereClause;
-        this.mWhereArgs = whereArgs;
+        mWhereClause = whereClause;
+        mWhereArgs = whereArgs;
         return this;
     }
 
     /**
-     * ORDER BY句を指定します。
+     * Sets the ORDER BY clause.
      * 
-     * @param orderByClause ORDER BY句
-     * @return ORDER BY句が設定されたデータベースマネージャ
+     * @param orderByClause ORDER BY clause
+     * @return database manager
      */
     public DatabaseManager orderBy(final String orderByClause) {
-        this.mOrderByClause = orderByClause;
+        mOrderByClause = orderByClause;
         return this;
     }
 
     /**
-     * 登録・更新対象のカラムから, 値が{@code null}であるものを除外する.
+     * Excludes the columns which value is {@code null}.
      * 
-     * @return データベースマネージャ
+     * @return database manager
      */
     public DatabaseManager excludesNull() {
         ContentValues newValues = new ContentValues();
-        for (Entry<String, Object> entry : this.mContentValues.valueSet()) {
+        for (Entry<String, Object> entry : mContentValues.valueSet()) {
             if (entry.getValue() != null) {
                 newValues.put(entry.getKey(), (String) entry.getValue());
             }
         }
-        this.mContentValues = newValues;
+        mContentValues = newValues;
         return this;
     }
 
     /**
-     * 指定の名前(クラス名, フィールド名)を大文字・アンダースコア('_')区切りの名前に変換する.<br>
-     * 変換元の名前は, 以下のような形式であるものとする.
+     * Convert the name(class or field name in camel format) to database name
+     * format; All characters are upper-case and are delimited by
+     * underscore('_').
+     * <p>
+     * The argument name is assumed to be the following format.
      * 
      * <pre>
      * {@code ([a-zA-Z][a-z0-9_\\$]*)([A-Z][a-z0-9_\\$]*)* }
      * </pre>
      * 
-     * @param name 変換対象の名前
-     * @return 変換後の名前
+     * @param name name to convert
+     * @return converted name
      */
     private String toDbName(final String name) {
         String dbName = "";
         for (int i = 0; i < name.length(); i++) {
             String c = name.substring(i, i + 1);
-            // 名前内の大文字を単語区切りとみなす
+            // Assume upper case characters as the delimiters of the words.
             if (c.matches("[A-Z]")) {
                 dbName += "_" + c;
             } else {
@@ -422,7 +540,7 @@ public final class DatabaseManager {
             }
         }
         dbName = dbName.toUpperCase(Locale.ENGLISH);
-        // クラス名からテーブル名を作成する場合、先頭に区切り文字が付くので除去
+        // Removes the underscores if this name is the class name
         if (dbName.startsWith("_")) {
             dbName = dbName.substring(1);
         }
@@ -430,12 +548,12 @@ public final class DatabaseManager {
     }
 
     /**
-     * 対象オブジェクトのフィールドから, 値を文字列として取得する.<br>
-     * 値が{@code null}の場合は{@code null}を返す.
+     * Returns the value as string from target object's field. Returns
+     * {@code null}, if the value is {@code null}.
      * 
-     * @param field 対象のフィールド
-     * @param targetObject 対象のオブジェクト
-     * @return フィールド値の文字列
+     * @param field target field
+     * @param targetObject target object
+     * @return value in string
      */
     private String getFieldValueAsString(final Field field, final Object targetObject) {
         Object value;
@@ -448,28 +566,61 @@ public final class DatabaseManager {
     }
 
     /**
-     * WHERE句を確定して組み立てる.<br>
+     * Constructs the WHERE clause.<br>
+     * This creates the parameters for
      * {@link SQLiteDatabase#update(String, ContentValues, String, String[])},
-     * {@link SQLiteDatabase#delete(String, String, String[])}
-     * に指定するWHERE句の引数を作成する.
+     * {@link SQLiteDatabase#delete(String, String, String[])}.
      */
     private void constructWhereClause() {
-        if (this.mWhereClauseMap.size() > 0) {
-            this.mWhereClause = "";
+        if (mWhereClauseMap.size() > 0) {
+            mWhereClause = "";
             final ArrayList<String> whereArgsList = new ArrayList<String>();
-            for (String columnName : this.mWhereClauseMap.keySet()) {
-                if (this.mWhereClause.length() > 0) {
-                    this.mWhereClause += " and ";
+            for (String columnName : mWhereClauseMap.keySet()) {
+                if (mWhereClause.length() > 0) {
+                    mWhereClause += " AND ";
                 }
-                final String valueString = this.mWhereClauseMap.get(columnName);
+                final String valueString = mWhereClauseMap.get(columnName);
                 if (valueString == null) {
-                    this.mWhereClause += columnName + " is null";
+                    mWhereClause += columnName + " IS NULL";
                 } else {
-                    this.mWhereClause += columnName + " = ?";
+                    mWhereClause += columnName + " = ?";
                     whereArgsList.add(valueString);
                 }
             }
-            this.mWhereArgs = whereArgsList.toArray(new String[] {});
+            mWhereArgs = whereArgsList.toArray(new String[] {});
         }
     }
+
+    /**
+     * Sets the field value by the database cursor.
+     * 
+     * @param field the field to access
+     * @param entity the entity object to access
+     * @param cursor the opened cursor
+     * @param initCusorPos the position(index) of the cursor
+     * @return the position(index) of the cursor after getting the value
+     * @throws IllegalAccessException if this field is not accessible
+     */
+    private int setFieldValuesByCursor(final Field field, final Object entity, final Cursor cursor,
+            final int initCusorPos) throws IllegalAccessException {
+        int cursorPos = initCusorPos;
+        final Class<?> type = field.getType();
+        if (type.equals(double.class)) {
+            field.setDouble(entity, cursor.getDouble(cursorPos++));
+        } else if (type.equals(float.class)) {
+            field.setFloat(entity, cursor.getFloat(cursorPos++));
+        } else if (type.equals(int.class)) {
+            field.setInt(entity, cursor.getInt(cursorPos++));
+        } else if (type.equals(long.class)) {
+            field.setLong(entity, cursor.getLong(cursorPos++));
+        } else if (type.equals(String.class)) {
+            field.set(entity, cursor.getString(cursorPos++));
+        } else if (type.equals(byte[].class)) {
+            field.set(entity, cursor.getBlob(cursorPos++));
+        } else if (type.equals(short.class)) {
+            field.setShort(entity, cursor.getShort(cursorPos++));
+        }
+        return cursorPos;
+    }
+
 }

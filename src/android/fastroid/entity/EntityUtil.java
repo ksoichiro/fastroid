@@ -42,9 +42,10 @@ import java.util.Arrays;
  * @since 2011/05/05
  */
 public final class EntityUtil {
+
     /**
-     * コンストラクタです。<br>
-     * ユーティリティクラスであるため、クラス外からのインスタンス化を禁止します。
+     * Creates the utility.<br>
+     * This is hidden from outside the class because this is the utility class.
      */
     private EntityUtil() {
     }
@@ -197,4 +198,5 @@ public final class EntityUtil {
 
         return dst;
     }
+
 }

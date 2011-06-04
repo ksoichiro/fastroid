@@ -28,7 +28,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 入力必須であることを示すアノテーション.
+ * This is the annotation representing the required field.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/03
@@ -37,14 +37,15 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Required {
     /**
-     * エラーメッセージに表示するフィールド名のリソースID.<br>
-     * デフォルトでは{@code 0}(無効)が設定され, フィールド名がそのままメッセージに使用される.
+     * Resource ID of the field name for the error message.<br>
+     * This is set to {@code 0}(invalid) as default, and the field name will be
+     * used in the error messages.
      */
     int nameResId() default 0;
 
     /**
-     * 指定の条件でのみ入力必須であることを示す.<br>
-     * デフォルトでは条件なし.
+     * This is the condition when the constraint is applied.<br>
+     * Conditions are not set by default.
      */
     When[] when() default { };
 }

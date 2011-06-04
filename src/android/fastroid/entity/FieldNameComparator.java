@@ -26,7 +26,7 @@ import java.lang.reflect.Field;
 import java.util.Comparator;
 
 /**
- * フィールドをフィールド名によって順序付けます。
+ * Compares the order of the fields by field name.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05

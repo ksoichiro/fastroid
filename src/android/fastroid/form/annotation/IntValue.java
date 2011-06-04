@@ -28,7 +28,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 数値であることを示すアノテーションです。
+ * This is the annotation which represents the integer value.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05

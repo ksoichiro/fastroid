@@ -28,9 +28,11 @@ import java.lang.reflect.Field;
 import java.util.Comparator;
 
 /**
- * フィールドを{@link Order}アノテーションを使って順序付けます。<br>
- * アノテーションの値が小さいものが前方になります。<br>
- * アノテーションのないフィールドは無条件に後方になり、アノテーションのないフィールド同士は フィールド名によって順序付けます。
+ * Compares the order of the fields by {@link Order} annotation.
+ * <p>
+ * This comparator evaluates the smaller value to the forward. If the field to
+ * compare has no annotations, the comparator evaluates to backward, and
+ * determines the order by field names.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -38,7 +40,7 @@ import java.util.Comparator;
 public final class FieldOrderComparator implements Comparator<Field> {
     @Override
     public int compare(final Field object1, final Field object2) {
-        // Orderがついているフィールドの方が小さく評価される
+        // Field which has Order annotaion will be evaluated to forward
         final Order order1 = object1.getAnnotation(Order.class);
         final Order order2 = object2.getAnnotation(Order.class);
         if (order1 != null && order2 != null) {

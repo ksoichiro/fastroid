@@ -20,8 +20,20 @@
  * THE SOFTWARE.
  */
 
-/**
- * Provides the annotations for the forms.
- */
+package android.fastroid.entity.annotation;
 
-package android.fastroid.form.annotation;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * Expresses the many-to-one relationship.
+ * 
+ * @author Soichiro Kashima
+ * @since 2011/05/31
+ */
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ManyToOne {
+}

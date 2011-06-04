@@ -28,7 +28,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * ラジオボタングループを示すアノテーションです。
+ * This is the annotation representing the radio button group.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -36,9 +36,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Radio {
-    /** ラジオボタングループのリソースIDです。 */
+    /** Resource ID of the radio button group. */
     int groupId();
 
-    /** ラジオボタンの配列です。 */
+    /** Values of the radio buttons in this group. */
     RadioValue[] values();
 }

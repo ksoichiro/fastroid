@@ -28,17 +28,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * ラジオボタンを示すアノテーションです。 アノテーション{@link Radio}と組み合わせて使用します。
+ * This is the annotation representing the radio button.
  * 
+ * @see {@link Radio}
  * @author Soichiro Kashima
  * @since 2011/05/05
  */
 @Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RadioValue {
-    /** ラジオボタンのリソースIDです。 */
+    /** Resource ID of this radio button. */
     int id();
 
-    /** ラジオボタンと対応させる値です。 */
+    /** Value of the radio button. */
     String value();
 }

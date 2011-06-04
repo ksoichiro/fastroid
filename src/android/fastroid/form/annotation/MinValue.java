@@ -28,7 +28,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 最小値を指定するアノテーションです。
+ * This is the annotation which represents the minimum value.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -36,6 +36,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface MinValue {
-    /** 最小値です。 */
+    /** Minimum value of the field. */
     int value();
 }

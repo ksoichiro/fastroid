@@ -28,7 +28,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 指定の条件の場合のみ検証することを示すアノテーション.
+ * This is the annotation representing the condition when the validation is
+ * applied.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/03
@@ -36,18 +37,17 @@ import java.lang.annotation.Target;
 @Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface When {
-    /**
-     * 条件となるフィールド名.
-     */
+    /** Name of the condition field. */
     String name();
 
     /**
-     * 値が{@code null}または長さ{@code 0}でない場合に検証する.
+     * If true, validates the value when the value is not null and the
+     * length is not 0.
      */
     boolean isNotEmpty() default false;
 
     /**
-     * 値が指定の値に一致する場合に検証する.
+     * Validates the value when the value equals to a certain value.
      */
     String equalsTo() default "";
 }

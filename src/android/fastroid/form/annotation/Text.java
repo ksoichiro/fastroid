@@ -28,7 +28,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * テキストボックスを示すアノテーションです。
+ * This is the annotation representing the text box.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -36,6 +36,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Text {
-    /** テキストボックスのリソースIDです。 */
+    /** Resource ID of the text box. */
     int id();
 }
