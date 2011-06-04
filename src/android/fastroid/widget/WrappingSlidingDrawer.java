@@ -24,7 +24,6 @@ package android.fastroid.widget;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.widget.SlidingDrawer;
 
@@ -38,36 +37,36 @@ public final class WrappingSlidingDrawer extends SlidingDrawer implements
         SlidingDrawer.OnDrawerOpenListener,
         SlidingDrawer.OnDrawerCloseListener {
 
-    /** 表示方向が縦向きであるかどうかを示します。 */
+    /** True if the orientation is vertical. */
     private boolean mVertical;
 
-    /** 上部からのオフセット値です。 */
+    /** Vertical offset from the top. */
     private int mTopOffset;
 
-    /** ドロワーが開いたときの通知を受け取るリスナーです。 */
+    /** Listener which receives the drawer opened event. */
     private OnDrawerOpenListener mOnDrawerOpenListener;
 
-    /** ドロワーが閉じたときの通知を受け取るリスナーです。 */
+    /** Listener which receives the drawer closed event. */
     private OnDrawerCloseListener mOnDrawerCloseListener;
 
-    /** ドロワーが開いたときの通知を受け取るリスナーです。 */
+    /** This is the listener which receives the drawer opened event. */
     public interface OnDrawerOpenListener {
-        /** ドロワーが開いたときに呼び出されます。 */
+        /** Called when the drawer has opened. */
         void onDrawerOpened();
     }
 
-    /** ドロワーが閉じたときの通知を受け取るリスナーです。 */
+    /** This is the listener which receives the drawer closed event. */
     public interface OnDrawerCloseListener {
-        /** ドロワーが閉じたときに呼び出されます。 */
+        /** Called when the drawer has closed. */
         void onDrawerClosed();
     }
 
     /**
-     * コンストラクタです。
+     * Creates the drawer.
      * 
-     * @param context コンテキスト
-     * @param attrs 設定属性
-     * @param defStyle スタイル
+     * @param context context
+     * @param attrs attributes
+     * @param defStyle style
      */
     public WrappingSlidingDrawer(final Context context, final AttributeSet attrs,
             final int defStyle) {
@@ -83,10 +82,10 @@ public final class WrappingSlidingDrawer extends SlidingDrawer implements
     }
 
     /**
-     * コンストラクタです。
+     * Creates the drawer.
      * 
-     * @param context コンテキスト
-     * @param attrs 設定属性
+     * @param context context
+     * @param attrs attributes
      */
     public WrappingSlidingDrawer(final Context context, final AttributeSet attrs) {
         super(context, attrs);
@@ -122,7 +121,7 @@ public final class WrappingSlidingDrawer extends SlidingDrawer implements
         measureChild(handle, widthMeasureSpec, heightMeasureSpec);
 
         if (mVertical) {
-            int height = heightSpecSize - handle.getMeasuredHeight() - mTopOffset;
+            final int height = heightSpecSize - handle.getMeasuredHeight() - mTopOffset;
             content.measure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(height, heightSpecMode));
             heightSpecSize = handle.getMeasuredHeight() + mTopOffset + content.getMeasuredHeight();
             widthSpecSize = content.getMeasuredWidth();
@@ -130,7 +129,7 @@ public final class WrappingSlidingDrawer extends SlidingDrawer implements
                 widthSpecSize = handle.getMeasuredWidth();
             }
         } else {
-            int width = widthSpecSize - handle.getMeasuredWidth() - mTopOffset;
+            final int width = widthSpecSize - handle.getMeasuredWidth() - mTopOffset;
             getContent().measure(
                     MeasureSpec.makeMeasureSpec(width, widthSpecMode),
                     heightMeasureSpec);
@@ -148,7 +147,6 @@ public final class WrappingSlidingDrawer extends SlidingDrawer implements
     public void onDrawerOpened() {
         invalidate();
         requestLayout();
-        Log.v("tag", "requested layout at onDrawerOpened");
         if (mOnDrawerOpenListener != null) {
             mOnDrawerOpenListener.onDrawerOpened();
         }
@@ -158,25 +156,24 @@ public final class WrappingSlidingDrawer extends SlidingDrawer implements
     public void onDrawerClosed() {
         invalidate();
         requestLayout();
-        Log.v("tag", "requested layout at onDrawerClosed");
         if (mOnDrawerCloseListener != null) {
             mOnDrawerCloseListener.onDrawerClosed();
         }
     }
 
     /**
-     * ドロワーが閉じたときのリスナーを設定します。
+     * Sets the event listener for drawer-closed event.
      * 
-     * @param onDrawerCloseListener リスナー
+     * @param onDrawerCloseListener close event listener
      */
     public void setOnDrawerCloseListener(final OnDrawerCloseListener onDrawerCloseListener) {
         mOnDrawerCloseListener = onDrawerCloseListener;
     }
 
     /**
-     * ドロワーが開いたときのリスナーを設定します。
+     * Sets the event listener for drawer-opened event.
      * 
-     * @param onDrawerOpenListener リスナー
+     * @param onDrawerOpenListener open event listener
      */
     public void setOnDrawerOpenListener(final OnDrawerOpenListener onDrawerOpenListener) {
         mOnDrawerOpenListener = onDrawerOpenListener;

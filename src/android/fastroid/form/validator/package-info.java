@@ -21,7 +21,7 @@
  */
 
 /**
- * 入力フォームの検証機能を提供します。
+ * Provides the validations for the forms.
  */
 
 package android.fastroid.form.validator;

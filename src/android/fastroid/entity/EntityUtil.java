@@ -51,24 +51,25 @@ public final class EntityUtil {
     }
 
     /**
-     * 指定のアクティビティからフォームクラスの定義に従って入力値を取得し、 入力チェックしてエンティティを取得します。<br>
-     * 入力エラーがあった場合、入力チェックのタイプに対応する規定のエラーメッセージを {@link Toast}で表示し、{@code null}
-     * を返します。
+     * Gets the input values from the form class in the specified activity,
+     * validates the values, and returns the entity. If the input values have
+     * errors, this methos shows the error message as {@link Toast}, and returns
+     * {@code null}.
      * 
-     * @param activity 対象のアクティビティ
-     * @param formClass アクティビティに関連付けられたフォームクラス
-     * @param entityClass フォームと対になるエンティティクラス
-     * @return 入力チェックの済んだエンティティ
+     * @param activity target activity
+     * @param formClass the form class related to the activity
+     * @param entityClass the entity class corresponding to the form
+     * @return validated entity
      */
     public static Object create(final Activity activity, final Class<?> formClass,
             final Class<?> entityClass) {
-        // 入力値を取得
+        // Gets the input value from the form
         Object form = FormUtil.create(activity, formClass);
 
-        // 入力チェック
+        // Validation
         ArrayList<String> errorMessages = Validator.validate(activity, form);
         if (errorMessages.size() > 0) {
-            // 入力エラー
+            // Error
             Toast.makeText(
                     activity,
                     MessageUtil.serialize(errorMessages),
@@ -76,15 +77,16 @@ public final class EntityUtil {
             return null;
         }
 
-        // エンティティへコピー
+        // Copies to the entity
         return copy(form, entityClass);
     }
 
     /**
-     * 対象オブジェクトのpublicフィールドを、{@link Parcel}からフィールド名の昇順で読み込みんで設定します。
+     * Sets the public field's value of the target object from the
+     * {@link Parcel} order by the field name(asc).
      * 
-     * @param target 設定対象のオブジェクト
-     * @param in 値を読み込む{@link Parcel}
+     * @param target target object
+     * @param in {@link Parcel} to read
      */
     public static void readFieldsByNameOrder(final Object target, final Parcel in) {
         Field[] fields = target.getClass().getFields();
@@ -92,7 +94,7 @@ public final class EntityUtil {
         try {
             for (Field field : fields) {
                 Class<?> type = field.getType();
-                // finalフィールドには設定しない
+                // Skipps the final fields
                 if (Modifier.isFinal(field.getModifiers())) {
                     continue;
                 }
@@ -116,10 +118,11 @@ public final class EntityUtil {
     }
 
     /**
-     * 対象のオブジェクトのpublicフィールドを、フィールド名の昇順で{@link Parcel}に書き込みます。
+     * Writes the public field valeus to the {@link Parcel} order by the field
+     * names(asc).
      * 
-     * @param target 出力対象のオブジェクト
-     * @param out 出力先の{@link Parcel}
+     * @param target target object
+     * @param out output {@link Parcel}
      */
     public static void writeFieldsByNameOrder(final Object target, final Parcel out) {
         Field[] fields = target.getClass().getFields();
@@ -127,7 +130,7 @@ public final class EntityUtil {
         try {
             for (Field field : fields) {
                 Class<?> type = field.getType();
-                // finalフィールドからは取得しない
+                // Skipps the final fields
                 if (Modifier.isFinal(field.getModifiers())) {
                     continue;
                 }
@@ -151,12 +154,11 @@ public final class EntityUtil {
     }
 
     /**
-     * 指定のオブジェクトを、別のオブジェクトへコピーします。<br>
-     * フィールド名が同じ場合にコピーされます。
+     * Copies an object fields which have same names to the other object.<br>
      * 
-     * @param src コピー元のオブジェクト
-     * @param dstClass コピー先オブジェクトのクラス
-     * @return コピーされたオブジェクト
+     * @param src source object
+     * @param dstClass destination object's class
+     * @return copied object
      */
     public static Object copy(final Object src, final Class<?> dstClass) {
         Field[] srcFields = src.getClass().getFields();
@@ -179,11 +181,11 @@ public final class EntityUtil {
                         if (dstType.equals(int.class)) {
                             dstField.setInt(dst, Integer.parseInt(valueString));
                         } else {
-                            // TODO ディープコピーが必要
+                            // TODO Needs deep copy
                             dstField.set(dst, value);
                         }
                     } else {
-                        // TODO ディープコピーが必要
+                        // TODO Needs deep copy
                         dstField.set(dst, value);
                     }
                 } catch (Exception e) {

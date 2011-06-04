@@ -33,7 +33,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * 必須入力チェックを行います。
+ * This validator provides the required field validation.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -41,11 +41,11 @@ import java.util.List;
 class RequiredValidator extends AbstractValidator {
 
     /**
-     * コンストラクタです。
+     * Creates the validator.
      * 
-     * @param target チェック対象のオブジェクト
-     * @param resources エラーメッセージ取得用のリソース
-     * @param errorMessages 入力エラーメッセージを格納するリスト
+     * @param target target object
+     * @param resources resource to get the error messages
+     * @param errorMessages error messages list
      */
     public RequiredValidator(final Object target, final Resources resources,
             final List<String> errorMessages) {
@@ -56,7 +56,7 @@ class RequiredValidator extends AbstractValidator {
     public boolean detectError(final Object value, final Field field) {
         Required required = field.getAnnotation(Required.class);
         if (required != null) {
-            // 条件チェック
+            // Checks the conditions to valiate
             When[] whenList = required.when();
             boolean validateEnabled;
             if (whenList == null || whenList.length == 0) {
@@ -82,11 +82,11 @@ class RequiredValidator extends AbstractValidator {
                     }
                 }
             }
-            // 入力チェックなし
+            // Do not validate
             if (!validateEnabled) {
                 return false;
             }
-            // 入力チェック
+            // Validate
             final Class<?> type = field.getType();
             if (type.equals(String.class)) {
                 final String strValue = (String) value;

@@ -26,7 +26,6 @@ import android.app.Activity;
 import android.fastroid.form.annotation.Radio;
 import android.fastroid.form.annotation.RadioValue;
 import android.fastroid.form.annotation.Text;
-import android.util.Log;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 
@@ -48,22 +47,19 @@ public final class FormUtil {
     }
 
     /**
-     * 指定のアクティビティからフォーム情報を読み取り、オブジェクトを生成します。
+     * Reads the form information from the activity, and creates a new object.
      * 
-     * @param activity 対象のアクティビティ
-     * @param dstFormClass アクティビティに関連付けられたフォームクラス
-     * @return 生成されたフォームオブジェクト
+     * @param activity target activity
+     * @param dstFormClass the destination form class
+     * @return created object
      */
     public static Object create(final Activity activity, final Class<?> dstFormClass) {
         try {
             final Object form = dstFormClass.newInstance();
             final Field[] fields = dstFormClass.getFields();
             for (Field field : fields) {
-                Log.v("fastroid",
-                        "Class: " + dstFormClass.getName() + ", Field: " + field.getName());
                 Class<?> type = field.getType();
-
-                // テキスト形式
+                // Text box type
                 Text text = (Text) field.getAnnotation(Text.class);
                 if (text != null && type.equals(String.class)) {
                     String value =
@@ -72,7 +68,7 @@ public final class FormUtil {
                     continue;
                 }
 
-                // ラジオボタン形式
+                // Radio button type
                 Radio radio = (Radio) field.getAnnotation(Radio.class);
                 if (radio != null && type.equals(String.class)) {
                     int groupId = radio.groupId();

@@ -40,18 +40,18 @@ public final class MessageUtil {
     }
 
     /**
-     * メッセージテンプレートに埋められたパラメータを置換して、メッセージを作成します。<br>
-     * メッセージのパラメータは「{n}」(n = 0, 1, ...)の形式です。
+     * Creates the message from template which has parameters.<br>
+     * The parameters in the template is the format "{n}"(n = 0, 1, ...).
      * 
-     * @param template メッセージテンプレート
-     * @param args テンプレートパラメータ
-     * @return パラメータが置換されたメッセージ
+     * @param template template of the message
+     * @param args arguments for the parameters in the template
+     * @return created message
      */
     public static String get(final String template, final Object... args) {
         if (template == null) {
             return null;
         }
-        // {n}を置換(nが見つからなくなるまで(途切れるまで)ループ
+        // Replaces {n} (until there are no ns.)
         int n = 0;
         String message = template;
         while (true) {
@@ -67,10 +67,11 @@ public final class MessageUtil {
     }
 
     /**
-     * エラーメッセージのリストを、改行文字で連結した文字列に変換します。
+     * Converts the list of the error messages to one string joined with the
+     * line separator.
      * 
-     * @param errorMessages エラーメッセージのリスト
-     * @return メッセージ
+     * @param errorMessages the list of the error messages to convert
+     * @return converted messages
      */
     public static String serialize(final List<String> errorMessages) {
         final StringBuilder sb = new StringBuilder();

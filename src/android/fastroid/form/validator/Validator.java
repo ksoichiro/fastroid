@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * 入力内容を検証するユーティリティです。.<br>
+ * The utility to validate input values.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/03
@@ -40,27 +40,31 @@ import java.util.Arrays;
 public final class Validator {
 
     /**
-     * コンストラクタです。<br>
-     * ユーティリティクラスであるため、クラス外からのインスタンス化を禁止します。
+     * Creates the validator.
+     * <p>
+     * This is allowed to use only for the inside of this class because this is
+     * the utility class.
      */
     private Validator() {
     }
 
     /**
-     * 入力内容を検証します。<br>
-     * フィールドの検証は、{@link android.androsuit.entity.annotation.Order}アノテーションで
-     * 指定された順序の昇順で行います。 このアノテーションが指定されていない項目は、フィールド名の昇順で検証します。
-     * アノテーションが指定されているものは、指定しているものより優先されます。
+     * Validates the input values.
+     * <p>
+     * Validations are executed in the orders specified by the
+     * {@link android.androsuit.entity.annotation.Order}. If this annotation is
+     * not specified, the order is determined by field names(asc). The fields
+     * with the annotations are prior to the others.
      * 
-     * @param context リソースにアクセスするためのアプリケーションコンテキスト
-     * @param target 検証対象のオブジェクト(フォームクラス)
-     * @return 入力エラーメッセージを格納するリスト
+     * @param context context to access the message resources
+     * @param target target object to be validated (the form)
+     * @return list to save the error messages
      */
     public static ArrayList<String> validate(final Context context, final Object target) {
         ArrayList<String> errorMessages = new ArrayList<String>();
         Resources res = context.getResources();
 
-        // 全てのpublicフィールドを取得
+        // Gets all the public fields
         Field[] fields = target.getClass().getFields();
         Arrays.sort(fields, new FieldOrderComparator());
         final RequiredValidator required = new RequiredValidator(target, res, errorMessages);
@@ -73,18 +77,18 @@ public final class Validator {
                 continue;
             }
 
-            // 必須チェック
+            // Required
             if (required.detectError(value, field)) {
                 continue;
             }
 
-            // 数値チェック
+            // TODO Int value
 
-            // 最小値チェック
+            // TODO Min value
 
-            // 最大値チェック
+            // TODO Max value
 
-            // 正規表現チェック
+            // TODO Regex value
         }
         return errorMessages;
     }

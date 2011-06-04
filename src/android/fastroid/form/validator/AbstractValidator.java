@@ -28,29 +28,30 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * 入力チェックを行います。<br>
- * このクラスは、サブクラスに実装される実際の入力チェックに必要なオブジェクトを準備します。
+ * Provides the validation functions.
+ * <p>
+ * This class prepares the objects to validation for subclasses.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
  */
 abstract class AbstractValidator {
 
-    /** チェック対象のオブジェクトです。 */
+    /** Target object to validate. */
     private Object mTarget;
 
-    /** エラーメッセージ取得用のリソースです。 */
+    /** Resource to get the error messages. */
     private Resources mResources;
 
-    /** エラーメッセージのリストです。 */
+    /** List of the error messages for the validation. */
     private List<String> mErrorMessages;
 
     /**
-     * コンストラクタです。
+     * Creates the validator.
      * 
-     * @param target チェック対象のオブジェクト
-     * @param resources エラーメッセージ取得用のリソース
-     * @param errorMessages 入力エラーメッセージを格納するリスト
+     * @param target target object
+     * @param resources resource to get the error messages
+     * @param errorMessages error messages list
      */
     public AbstractValidator(final Object target, final Resources resources,
             final List<String> errorMessages) {
@@ -60,51 +61,63 @@ abstract class AbstractValidator {
     }
 
     /**
-     * 入力チェックします。
+     * Validates the object, and returns whether it has any errors or not.
      * 
-     * @param value 入力値
-     * @param field 対象のフィールド
-     * @return 入力エラーがある場合は{@code true}
+     * @param value input value
+     * @param field target field
+     * @return true if there are errors.
      */
     public abstract boolean detectError(final Object value, final Field field);
 
     /**
-     * @return mTarget
+     * Returns the target object.
+     * 
+     * @return target object
      */
     public Object getTarget() {
         return mTarget;
     }
 
     /**
-     * @param target セットする mTarget
+     * Sets the target object.
+     * 
+     * @param target target object to set
      */
     public void setTarget(final Object target) {
         mTarget = target;
     }
 
     /**
-     * @return Resources
+     * Returns the resources to get error messages.
+     * 
+     * @return resources
      */
     protected Resources getResources() {
         return mResources;
     }
 
     /**
-     * @param resources セットする Resources
+     * Sets the resources to get error messages.
+     * 
+     * @param resources resources to set
      */
     protected void setResources(final Resources resources) {
         mResources = resources;
     }
 
     /**
-     * @return errorMessages
+     * Returns the error messages.
+     * 
+     * @return errorMessages error messages
      */
     protected List<String> getErrorMessages() {
         return mErrorMessages;
     }
 
     /**
-     * @param errorMessages セットする errorMessages
+     * Sets the error messages.
+     * 
+     * @param errorMessages error messages to set
      */
     protected void setErrorMessages(final List<String> errorMessages) {
         mErrorMessages = errorMessages;
