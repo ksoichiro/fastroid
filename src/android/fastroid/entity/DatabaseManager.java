@@ -31,10 +31,11 @@ import android.fastroid.entity.annotation.Column;
 import android.fastroid.entity.annotation.Id;
 import android.fastroid.entity.annotation.JoinColumn;
 import android.fastroid.entity.annotation.ManyToOne;
-import android.fastroid.entity.annotation.OneToOne;
+import android.fastroid.entity.annotation.OneToMany;
 import android.fastroid.util.StringUtil;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -47,7 +48,6 @@ import java.util.Map.Entry;
  * Simplifies the database operations.<br>
  * TODO copy method from existing instance.<br>
  * TODO upsert method<br>
- * TODO relation OneToMany: List<ENTITY> is not enough.
  * 
  * @author Soichiro Kashima
  * @since 2011/05/05
@@ -157,7 +157,7 @@ public final class DatabaseManager {
                 continue;
             }
             // Skip auto-increment columns
-            Id id = (Id) field.getAnnotation(Id.class);
+            Id id = field.getAnnotation(Id.class);
             if (id != null && id.autoIncrement()) {
                 continue;
             }
@@ -246,15 +246,25 @@ public final class DatabaseManager {
         join.setType(JoinType.LEFT_OUTER_JOIN);
         join.setFieldName(relationFieldName);
         try {
+            // Determines the class to join
             Field relationField = mTarget.getClass().getField(relationFieldName);
-            Class<?> joinClass = relationField.getType();
+            OneToMany oneToMany = relationField.getAnnotation(OneToMany.class);
+            Class<?> joinClass;
+            if (oneToMany == null) {
+                // Must be a normal class
+                joinClass = relationField.getType();
+            } else {
+                // Must be a parameterized List
+                ParameterizedType parameterizedType = (ParameterizedType) relationField
+                        .getGenericType();
+                joinClass = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+            }
             join.setTableClass(joinClass);
             join.setTableName(toDbName(joinClass.getSimpleName()));
 
             ManyToOne manyToOne = relationField.getAnnotation(ManyToOne.class);
             JoinColumn joinColumn;
             if (manyToOne == null) {
-                OneToOne oneToMany = relationField.getAnnotation(OneToOne.class);
                 String childFieldName = oneToMany.mappedBy();
                 joinColumn = joinClass.getField(childFieldName)
                         .getAnnotation(JoinColumn.class);
@@ -293,16 +303,8 @@ public final class DatabaseManager {
             final String tableName = toDbName(targetClass.getSimpleName());
             constructWhereClause();
 
-            final Field[] fields = targetClass.getFields();
-            Arrays.sort(fields, new FieldOrderComparator());
-            final ArrayList<String> fieldNames = new ArrayList<String>();
-            for (Field field : fields) {
-                // Skip non-column fields
-                if (field.getAnnotation(Column.class) == null) {
-                    continue;
-                }
-                fieldNames.add(toDbName(field.getName()));
-            }
+            final Field[] fields = getFields(targetClass);
+            final List<String> fieldNames = getFieldNames(fields);
             db = mHelper.getReadableDatabase();
             StringBuilder columns = new StringBuilder();
             for (String fieldName : fieldNames) {
@@ -315,20 +317,43 @@ public final class DatabaseManager {
             }
             List<String> sqlArgsList = new ArrayList<String>();
             // Creates JOIN phrase
-            String sql = "";
+            StringBuilder sql = new StringBuilder();
             for (Join join : mJoinList) {
                 if (join.getType().equals(JoinType.INNER_JOIN)) {
-                    sql += " INNER JOIN " + join.getTableName()
-                            + " ON " + tableName + "." + join.getColumnName()
-                            + " = " + join.getTableName() + "." + join.getColumnName();
+                    sql.append(" INNER JOIN ");
+                    sql.append(join.getTableName());
+                    sql.append(" ON ");
+                    sql.append(tableName);
+                    sql.append(".");
+                    sql.append(join.getColumnName());
+                    sql.append(" = ");
+                    sql.append(join.getTableName());
+                    sql.append(".");
+                    sql.append(join.getColumnName());
+                    // sql += " INNER JOIN " + join.getTableName()
+                    // + " ON " + tableName + "." + join.getColumnName()
+                    // + " = " + join.getTableName() + "." +
+                    // join.getColumnName();
                 } else if (join.getType().equals(JoinType.LEFT_OUTER_JOIN)) {
-                    sql += " LEFT OUTER JOIN " + join.getTableName()
-                            + " ON " + tableName + "." + join.getColumnName()
-                            + " = " + join.getTableName() + "." + join.getColumnName();
+                    sql.append(" LEFT OUTER JOIN ");
+                    sql.append(join.getTableName());
+                    sql.append(" ON ");
+                    sql.append(tableName);
+                    sql.append(".");
+                    sql.append(join.getColumnName());
+                    sql.append(" = ");
+                    sql.append(join.getTableName());
+                    sql.append(".");
+                    sql.append(join.getColumnName());
+                    // sql += " LEFT OUTER JOIN " + join.getTableName()
+                    // + " ON " + tableName + "." + join.getColumnName()
+                    // + " = " + join.getTableName() + "." +
+                    // join.getColumnName();
                 }
                 String additionalCondClause = join.getAdditionalCondClause();
                 if (!StringUtil.isEmpty(additionalCondClause)) {
-                    sql += " AND " + additionalCondClause;
+                    sql.append(" AND ");
+                    sql.append(additionalCondClause);
                 }
                 if (join.getAdditionalCondArgs() != null) {
                     for (String arg : join.getAdditionalCondArgs()) {
@@ -336,16 +361,8 @@ public final class DatabaseManager {
                     }
                 }
                 // Adds the columns of the joined table.
-                final Field[] joinFields = join.getTableClass().getFields();
-                Arrays.sort(joinFields, new FieldOrderComparator());
-                final ArrayList<String> joinFieldNames = new ArrayList<String>();
-                for (Field field : joinFields) {
-                    // Skip non-column fields
-                    if (field.getAnnotation(Column.class) == null) {
-                        continue;
-                    }
-                    joinFieldNames.add(toDbName(field.getName()));
-                }
+                final Field[] joinFields = getFields(join.getTableClass());
+                final List<String> joinFieldNames = getFieldNames(joinFields);
                 db = mHelper.getReadableDatabase();
                 StringBuilder joinColumns = new StringBuilder();
                 for (String fieldName : joinFieldNames) {
@@ -363,55 +380,45 @@ public final class DatabaseManager {
                     columns.append(joinColumns);
                 }
             }
-            sql = "SELECT " + columns + " FROM " + tableName + sql;
+            StringBuilder sqlSelect = new StringBuilder();
+            sqlSelect.append("SELECT ");
+            sqlSelect.append(columns);
+            sqlSelect.append(" FROM ");
+            sqlSelect.append(tableName);
+            sqlSelect.append(sql);
+            // sql = "SELECT " + columns + " FROM " + tableName + sql;
             if (!StringUtil.isEmpty(mWhereClause)) {
-                sql += " WHERE " + mWhereClause;
+                sqlSelect.append(" WHERE ");
+                sqlSelect.append(mWhereClause);
+                // sql += " WHERE " + mWhereClause;
                 for (String arg : mWhereArgs) {
                     sqlArgsList.add(arg);
                 }
             }
             if (!StringUtil.isEmpty(mGroupByClause)) {
-                sql += " GROUP BY " + mGroupByClause;
+                sqlSelect.append(" GROUP BY ");
+                sqlSelect.append(mGroupByClause);
+                // sql += " GROUP BY " + mGroupByClause;
                 if (!StringUtil.isEmpty(mHavingClause)) {
-                    sql += " HAVING " + mHavingClause;
+                    sqlSelect.append(" HAVING ");
+                    sqlSelect.append(mHavingClause);
+                    // sql += " HAVING " + mHavingClause;
                 }
             }
             if (!StringUtil.isEmpty(mOrderByClause)) {
-                sql += " ORDER BY " + mOrderByClause;
+                sqlSelect.append(" ORDER BY ");
+                sqlSelect.append(mOrderByClause);
+                // sql += " ORDER BY " + mOrderByClause;
             }
             String[] sqlArgs = sqlArgsList.toArray(new String[] {});
 
             // Now, execute the complete query!
-            cursor = db.rawQuery(sql, sqlArgs);
+            cursor = db.rawQuery(sqlSelect.toString(), sqlArgs);
 
             // Retrieves the selected values from the cursor
             if (cursor.moveToFirst()) {
                 do {
-                    final T entity = targetClass.newInstance();
-                    int cursorPos = 0;
-                    for (Field field : fields) {
-                        // Skip non-column fields
-                        if (field.getAnnotation(Column.class) != null) {
-                            cursorPos = setFieldValuesByCursor(field, entity, cursor, cursorPos);
-                        }
-                    }
-                    for (Join join : mJoinList) {
-                        Field relationField = entity.getClass().getField(join.getFieldName());
-                        // Initializes the relation field.
-                        Object relation = relationField.getType().newInstance();
-                        relationField.set(entity, relation);
-                        final Field[] joinFields = join.getTableClass().getFields();
-                        Arrays.sort(joinFields, new FieldOrderComparator());
-                        for (Field joinField : joinFields) {
-                            // Skip non-column fields
-                            if (joinField.getAnnotation(Column.class) == null) {
-                                continue;
-                            }
-                            cursorPos = setFieldValuesByCursor(joinField, relation, cursor,
-                                    cursorPos);
-                        }
-                    }
-                    result.add(entity);
+                    retrieveFromCursor(cursor, targetClass);
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
@@ -515,6 +522,63 @@ public final class DatabaseManager {
     }
 
     /**
+     * Retrieves the entity from the cursor.
+     * 
+     * @param <T> type of the entity
+     * @param cursor the opened cursor to get an entity
+     * @param targetClass the class of the entity
+     * @return the entity retrieved from the cursor
+     * @throws Exception if the instantiation of the entity failed
+     */
+    @SuppressWarnings({
+            "unchecked", "rawtypes"
+    })
+    private <T> T retrieveFromCursor(final Cursor cursor, final Class<T> targetClass)
+            throws Exception {
+        final T entity = targetClass.newInstance();
+        final Field[] fields = getFields(targetClass);
+        int cursorPos = 0;
+        for (Field field : fields) {
+            // Skip non-column fields
+            if (field.getAnnotation(Column.class) != null) {
+                cursorPos = setFieldValuesByCursor(field, entity, cursor, cursorPos);
+            }
+        }
+        for (Join join : mJoinList) {
+            // Initializes the relation field.
+            // If it is annotated as OneToMany, then assumes it as
+            // an List, and adds an new entity to the list.
+            final Field relationField = entity.getClass().getField(join.getFieldName());
+            final OneToMany oneToMany = relationField.getAnnotation(OneToMany.class);
+            final Object relation;
+            if (oneToMany == null) {
+                // Must be a normal class
+                relation = relationField.getType().newInstance();
+                relationField.set(entity, relation);
+            } else {
+                // Must be a parameterized List
+                ParameterizedType parameterizedType = (ParameterizedType) relationField
+                        .getGenericType();
+                Class<?> joinClass = (Class<?>) parameterizedType
+                        .getActualTypeArguments()[0];
+                relation = joinClass.newInstance();
+                ((List) relationField.get(entity)).add(relation);
+            }
+
+            final Field[] joinFields = getFields(join.getTableClass());
+            for (Field joinField : joinFields) {
+                // Skip non-column fields
+                if (joinField.getAnnotation(Column.class) == null) {
+                    continue;
+                }
+                cursorPos = setFieldValuesByCursor(joinField, relation, cursor,
+                        cursorPos);
+            }
+        }
+        return entity;
+    }
+
+    /**
      * Convert the name(class or field name in camel format) to database name
      * format; All characters are upper-case and are delimited by
      * underscore('_').
@@ -589,6 +653,36 @@ public final class DatabaseManager {
             }
             mWhereArgs = whereArgsList.toArray(new String[] {});
         }
+    }
+
+    /**
+     * Returns the field array of the target class.
+     * 
+     * @param targetClass the target class to get fields
+     * @return the array of the fields
+     */
+    private Field[] getFields(final Class<?> targetClass) {
+        final Field[] fields = targetClass.getFields();
+        Arrays.sort(fields, new FieldOrderComparator());
+        return fields;
+    }
+
+    /**
+     * Returns the names of the fields as an list.
+     * 
+     * @param fields the target fields in array
+     * @return the names of the fields
+     */
+    private List<String> getFieldNames(final Field[] fields) {
+        final List<String> fieldNames = new ArrayList<String>();
+        for (Field field : fields) {
+            // Skip non-column fields
+            if (field.getAnnotation(Column.class) == null) {
+                continue;
+            }
+            fieldNames.add(toDbName(field.getName()));
+        }
+        return fieldNames;
     }
 
     /**
