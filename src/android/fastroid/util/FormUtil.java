@@ -22,10 +22,11 @@
 
 package android.fastroid.util;
 
-import android.app.Activity;
+import android.content.Context;
 import android.fastroid.form.annotation.Radio;
 import android.fastroid.form.annotation.RadioValue;
 import android.fastroid.form.annotation.Text;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 
@@ -49,11 +50,13 @@ public final class FormUtil {
     /**
      * Reads the form information from the activity, and creates a new object.
      * 
-     * @param activity target activity
+     * @param context target context
+     * @param rootView root view of the form
      * @param dstFormClass the destination form class
      * @return created object
      */
-    public static Object create(final Activity activity, final Class<?> dstFormClass) {
+    public static Object create(final Context context, final View rootView,
+            final Class<?> dstFormClass) {
         try {
             final Object form = dstFormClass.newInstance();
             final Field[] fields = dstFormClass.getFields();
@@ -63,7 +66,7 @@ public final class FormUtil {
                 Text text = (Text) field.getAnnotation(Text.class);
                 if (text != null && type.equals(String.class)) {
                     String value =
-                            ((EditText) activity.findViewById(text.id())).getText().toString();
+                            ((EditText) rootView.findViewById(text.id())).getText().toString();
                     field.set(form, value);
                     continue;
                 }
@@ -72,7 +75,7 @@ public final class FormUtil {
                 Radio radio = (Radio) field.getAnnotation(Radio.class);
                 if (radio != null && type.equals(String.class)) {
                     int groupId = radio.groupId();
-                    RadioGroup radioGroup = (RadioGroup) activity.findViewById(groupId);
+                    RadioGroup radioGroup = (RadioGroup) rootView.findViewById(groupId);
                     int checkedId = radioGroup.getCheckedRadioButtonId();
                     RadioValue[] values = radio.values();
                     for (int i = 0; i < values.length; i++) {

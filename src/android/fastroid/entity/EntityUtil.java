@@ -23,11 +23,13 @@
 package android.fastroid.entity;
 
 import android.app.Activity;
+import android.content.Context;
 import android.fastroid.form.validator.Validator;
 import android.fastroid.util.FormUtil;
 import android.fastroid.util.MessageUtil;
 import android.os.Parcel;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import java.lang.reflect.Field;
@@ -61,17 +63,35 @@ public final class EntityUtil {
      * @param entityClass the entity class corresponding to the form
      * @return validated entity
      */
-    public static Object create(final Activity activity, final Class<?> formClass,
-            final Class<?> entityClass) {
+    public static Object create(final Activity activity,
+            final Class<?> formClass, final Class<?> entityClass) {
+        return create(activity, activity.findViewById(android.R.id.content),
+                formClass, entityClass);
+    }
+
+    /**
+     * Gets the input values from the form class in the specified activity,
+     * validates the values, and returns the entity. If the input values have
+     * errors, this methos shows the error message as {@link Toast}, and returns
+     * {@code null}.
+     * 
+     * @param context target context
+     * @param rootView root view of the form
+     * @param formClass the form class related to the activity
+     * @param entityClass the entity class corresponding to the form
+     * @return validated entity
+     */
+    public static Object create(final Context context, final View rootView,
+            final Class<?> formClass, final Class<?> entityClass) {
         // Gets the input value from the form
-        Object form = FormUtil.create(activity, formClass);
+        Object form = FormUtil.create(context, rootView, formClass);
 
         // Validation
-        ArrayList<String> errorMessages = Validator.validate(activity, form);
+        ArrayList<String> errorMessages = Validator.validate(context, form);
         if (errorMessages.size() > 0) {
             // Error
             Toast.makeText(
-                    activity,
+                    context,
                     MessageUtil.serialize(errorMessages),
                     Toast.LENGTH_SHORT).show();
             return null;
